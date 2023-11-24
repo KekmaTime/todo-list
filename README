@@ -1,0 +1,1 @@
+This is a simple todo list application written in Rust. It provides an intuitive console-based interface using the ncurses library. Users can add tasks, view the current list of todos, and quit the application. The app allows for easy management of tasks within the terminal environment
