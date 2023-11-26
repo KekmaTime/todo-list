@@ -11,41 +11,54 @@ type Id = usize;
 
 #[derive(Default)]
 struct Ui {
-    list_curr : Option<Id,
-    row : usize,
-    col : usize,
+    list_curr: Option<Id>,
+    row: usize,
+    col: usize,
 }
 
 impl Ui {
-    fn begin(&mut self , row : usize , col : usize){
-        self.row  = row;
+    fn begin(&mut self, row: usize, col: usize) {
+        self.row = row;
         self.col = col;
     }
 
-    fn begin_list(&mut self, id: Id){
+    fn begin_list(&mut self, id: Id) {
         assert!(self.list_curr.is_none(), "Nested Lists are Not Allowed");
         self.list_curr = Some(id);
     }
-    fn list_element(label : &str , id: Id){
-        let pair = if index == todo_curr {
-            HIGHLIGHT_PAIR
-        } else {
-            REGULAR_PAIR
-        };
-        attron(COLOR_PAIR(pair));
-        mvprintw(index as i32, 1, todo);
-        attroff(COLOR_PAIR(pair)); 
-        todo!()
-    }
-    fn label(&mut self ,text : &str){
-        todo!()
+
+    fn list_element(&mut self, label: &str, id: Id) {
+        let id_curr = self
+            .list_curr
+            .expect("Not allowed to create list elements outside of lists");
+
+        self.label(
+            label,
+            if id_curr == id {
+                HIGHLIGHT_PAIR
+            } else {
+                REGULAR_PAIR
+            },
+        );
+        // Implement further logic for list elements
     }
 
-    fn end_list(&mut self){
-        todo!()
+    fn label(&mut self, text: &str, pair: i16) {
+        mv(self.row as i32, self.col as i32);
+        attron(COLOR_PAIR(pair));
+        addstr(text);
+        attroff(COLOR_PAIR(pair));
+        self.row += 1;
+        // Implement further logic for labels
     }
-    fn end(&mut self){
-        todo!()
+
+    fn end_list(&mut self) {
+        self.list_curr = None;
+        // Implement further logic for ending lists
+    }
+
+    fn end(&mut self) {
+        // Implement logic for ending UI elements
     }
 }
 
@@ -61,34 +74,33 @@ fn main() {
     init_pair(HIGHLIGHT_PAIR, COLOR_BLACK, COLOR_WHITE);
 
     let mut quit = false;
-    let todos : Vec<String> = vec![
+    let todos: Vec<String> = vec![
         "Do ProjectEuler".to_string(),
         "Do Ferrous".to_string(),
-        "Shave".to_string()
+        "Shave".to_string(),
     ];
     let mut todo_curr: usize = 0;
     let done = Vec::<String>::new();
-    let mut todo_curr : usize = 1;
-    let mut done_curr : usize = 0;
+    let done_curr: usize = 0;
 
     let mut ui = Ui::default();
 
     while !quit {
-        ui.begin();
+        ui.begin(0, 0); // Set appropriate starting row and col
         {
-	        uiui.begin_list(todo_curr);
-	        fofor (index, &todo) in todos.iter().enumerate() {
-	        	ui.lui.list_element(todo ,index);
-	        }
-	        uiui.end_list();
+            ui.begin_list(todo_curr);
+            for (index, &ref todo) in todos.iter().enumerate() {
+                ui.list_element(&todo, index);
+            }
+            ui.end_list();
 
-	        uiui.label("-------------------------------------");
+            ui.label("-------------------------------------", REGULAR_PAIR);
 
-	        uiui.begin_list(done_curr);
-	        fofor (index, done) in dones.iter().enumerate() {
-	            uiui.list_element(index);
-	        }
-	        uiui.end_list();
+            ui.begin_list(done_curr);
+            for (index, _done) in done.iter().enumerate() {
+                ui.list_element(&_done, index);
+            }
+            ui.end_list();
         }
         ui.end();
 
