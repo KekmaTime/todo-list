@@ -7,82 +7,86 @@ use tokio_postgres::{Client, NoTls};
 use rocket_cors::{CorsOptions, AllowedOrigins};
 
 #[derive(Debug, Serialize, Deserialize)]
-struct User {
+struct Todo {
     id: Option<i32>,
-    name: String,
-    email: String,
+    title: String,
+    description: String,
+    completed: bool,
 }
 
-#[post("/api/users", data = "<user>")]
-async fn add_users(
+#[post("/api/todos", data = "<todo>")]
+async fn add_todo(
     conn: &State<Client>,
-    user: Json<User>,
-) -> Result<Json<User>, Custom<String>> {
+    todo: Json<Todo>,
+) -> Result<Json<Todo>, Custom<String>> {
     execute_query(
         conn,
-        "INSERT INTO users (name, email) VALUES ($1, $2) RETURNING id, name, email",
-        &[&user.name, &user.email],
+        "INSERT INTO todos (title, description, completed) VALUES ($1, $2, $3) RETURNING id, title, description, completed",
+        &[&todo.title, &todo.description, &todo.completed],
     )
     .await?
     .get(0)
-    .ok_or_else(|| Custom(Status::InternalServerError, "Failed to insert user".to_string()))
-    .map(|row| Json(User {
+    .ok_or_else(|| Custom(Status::InternalServerError, "Failed to insert todo".to_string()))
+    .map(|row| Json(Todo {
         id: row.get(0),
-        name: row.get(1),
-        email: row.get(2),
+        title: row.get(1),
+        description: row.get(2),
+        completed: row.get(3),
     }))
 }
 
-#[get("/api/users")]
-async fn get_users(conn: &State<Client>) -> Result<Json<Vec<User>>, Custom<String>> {
-    get_users_from_db(conn).await.map(Json)
+#[get("/api/todos")]
+async fn get_todos(conn: &State<Client>) -> Result<Json<Vec<Todo>>, Custom<String>> {
+    get_todos_from_db(conn).await.map(Json)
 }
 
-async fn get_users_from_db(client: &Client) -> Result<Vec<User>, Custom<String>> {
-    let users = client
-        .query("SELECT id, name, email FROM users", &[])
+async fn get_todos_from_db(client: &Client) -> Result<Vec<Todo>, Custom<String>> {
+    let todos = client
+        .query("SELECT id, title, description, completed FROM todos", &[])
         .await
         .map_err(|e| Custom(Status::InternalServerError, e.to_string()))?
         .into_iter()
-        .map(|row| User {
+        .map(|row| Todo {
             id: row.get(0),
-            name: row.get(1),
-            email: row.get(2),
+            title: row.get(1),
+            description: row.get(2),
+            completed: row.get(3),
         })
-        .collect::<Vec<User>>();
+        .collect::<Vec<Todo>>();
 
-    Ok(users)
+    Ok(todos)
 }
 
-#[put("/api/users/<id>", data = "<user>")]
-async fn update_users(
+#[put("/api/todos/<id>", data = "<todo>")]
+async fn update_todo(
     id: i32,
-    user: Json<User>,
+    todo: Json<Todo>,
     conn: &State<Client>,
-) -> Result<Json<User>, Custom<String>> {
+) -> Result<Json<Todo>, Custom<String>> {
     execute_query(
         conn,
-        "UPDATE users SET name = $1, email = $2 WHERE id = $3 RETURNING id, name, email",
-        &[&user.name, &user.email, &id],
+        "UPDATE todos SET title = $1, description = $2, completed = $3 WHERE id = $4 RETURNING id, title, description, completed",
+        &[&todo.title, &todo.description, &todo.completed, &id],
     )
     .await?
     .get(0)
-    .ok_or_else(|| Custom(Status::NotFound, "User not found".to_string()))
-    .map(|row| Json(User {
+    .ok_or_else(|| Custom(Status::NotFound, "Todo not found".to_string()))
+    .map(|row| Json(Todo {
         id: row.get(0),
-        name: row.get(1),
-        email: row.get(2),
+        title: row.get(1),
+        description: row.get(2),
+        completed: row.get(3),
     }))
 }
 
-#[delete("/api/users/<id>")]
-async fn delete_users(
+#[delete("/api/todos/<id>")]
+async fn delete_todo(
     conn: &State<Client>,
     id: i32,
 ) -> Result<Status, Custom<String>> {
     execute_query(
         conn,
-        "DELETE FROM users WHERE id = $1",
+        "DELETE FROM todos WHERE id = $1",
         &[&id],
     )
     .await?;
@@ -113,7 +117,12 @@ async fn rocket() -> _ {
 
     client
         .execute(
-            "CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL)",
+            "CREATE TABLE IF NOT EXISTS todos (
+                id SERIAL PRIMARY KEY,
+                title TEXT NOT NULL,
+                description TEXT NOT NULL,
+                completed BOOLEAN NOT NULL DEFAULT false
+            )",
             &[],
         )
         .await
@@ -126,6 +135,6 @@ async fn rocket() -> _ {
 
     rocket::build()
         .manage(client)
-        .mount("/", routes![add_users, get_users, update_users, delete_users])
+        .mount("/", routes![add_todo, get_todos, update_todo, delete_todo])
         .attach(cors)
 }
